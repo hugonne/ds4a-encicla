@@ -19,6 +19,51 @@ import io
 import base64
 import folium  #needed for interactive map
 from folium.plugins import HeatMap
+import psycopg2
+
+# Connection parameters, yours will be different
+param_dic = {
+    "host"      : "ec2-54-94-126-38.sa-east-1.compute.amazonaws.com",
+    "database"  : "ds4a_encicla_db",
+    "user"      : "ds4a_encicla_user",
+    "password"  : "ds4a2020_encicla_user"
+}
+def connect(params_dic):
+    """ Connect to the PostgreSQL database server """
+    conn = None
+    try:
+        # connect to the PostgreSQL server
+        conn = psycopg2.connect(**params_dic)
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(error)
+    return conn
+
+
+def postgresql_to_dataframe(param_dic, select_query, column_names):
+    """
+    Tranform a SELECT query into a pandas dataframe
+    """
+    print("connecting...")
+    conn = connect(param_dic)
+    cursor = conn.cursor()
+    try:
+        print("excecuting query...")
+        cursor.execute(select_query)
+        print("finished query...")
+    except (Exception, psycopg2.DatabaseError) as error:
+        print("Error: %s" % error)
+        cursor.close()
+        return 1
+
+    # Naturally we get a list of tupples
+    tupples = cursor.fetchall()
+    cursor.close()
+
+    # We just need to turn it into a pandas dataframe
+    print("query to pandas...")
+    df = pd.DataFrame(tupples, columns=column_names)
+    conn.close()
+    return df
 
 df = pd.read_csv("EnciclaWeb/data/inventory.csv", encoding='ISO-8859-1')
 df['YYYY'] = df['Date'].str[:4]
@@ -54,19 +99,22 @@ def plotTest():
 
 @app.route('/mapTest')
 def mapTest():
-    stations = pd.read_csv('EnciclaWeb/data/station_information.csv')
-    folium_map = folium.Map(location=[stations["Station_latitude"].mean(), stations["Station_longitude"].mean()],
+    query_stations = "SELECT s.name, s.latitude, s.longitude, s.picture, z.description as zone, case when i.station_bikes is null then 0 else cast(i.station_bikes as FLOAT)/cast(s.capacity as FLOAT) end as perc_bikes FROM ds4a_encicla_schema.zone z, ds4a_encicla_schema.station s left join ds4a_encicla_schema.inventory i on (s.station_id = i.station_id) WHERE s.zone_id = z.zone_id and i.date = (select max(date) from ds4a_encicla_schema.inventory)"
+    stations = postgresql_to_dataframe(param_dic, query_stations, ["name", "latitude", "longitude", "picture", "zone", "perc_bikes"])
+    folium_map = folium.Map(location=[stations["latitude"].mean(), stations["longitude"].mean()],
                             zoom_start=13,
                             tiles="OpenStreetMap")
+
     for i in stations.index:
-        if i % 2 == 1:
-            color = 'green'
-        elif i % 3 == 2:
-            color = 'orange'
-        else:
-            color = 'red'
-        popup = folium.Popup(stations["Station_name"][i], parse_html=True)
-        folium.Marker([stations["Station_latitude"][i], stations["Station_longitude"][i]], popup=popup, icon=folium.Icon(color=color, icon='info-sign')).add_to(folium_map)
+        perc_bikes = 1 if stations["perc_bikes"][i] > 1 else stations["perc_bikes"][i]
+        color = 'black' if perc_bikes <= 0.10 else 'red' if (perc_bikes > 0.1 and perc_bikes <= 0.33) else 'orange' if (perc_bikes > 0.33 and perc_bikes <= 0.66) else 'green'
+        popup_station = "<b>Name:</b> " + stations["name"][i]
+        popup_station += "<br><b>Latitude:</b> " + str(stations["latitude"][i])
+        popup_station += "<br><b>Longitude:</b> " + str(stations["longitude"][i])
+        popup_station += "<br><b>Zone:</b> " + str(stations["zone"][i])
+        popup_station += "<br><b>Disponibility:</b> <b><font color='" + color + "'>" + str(round(perc_bikes*100,2)) + "%</font></b>"
+        popup_station += "<br><b>Picture:</b> <img src='" + str(stations["picture"][i]) + "'>"
+        folium.Marker([stations["latitude"][i], stations["longitude"][i]], popup=popup_station, icon=folium.Icon(color=color, icon='info-sign')).add_to(folium_map)
 
     # first, force map to render as HTML, for us to dissect
     _ = folium_map._repr_html_()
@@ -81,12 +129,12 @@ def mapTest():
     script_txt = Markup(folium_map.get_root().script.render())
 
     return render_template('map-test.html',
-        title='Contact',
+        title='Station map',
         map_div = Markup(map_div),
         hdr_txt = Markup(hdr_txt),
         script_txt = Markup(script_txt),
         year=datetime.now().year,
-        message='Your contact page.')
+        message='')
 
 @app.route('/contact')
 def contact():
