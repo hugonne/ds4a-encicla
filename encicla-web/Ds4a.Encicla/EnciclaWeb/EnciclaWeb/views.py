@@ -99,8 +99,8 @@ def plotTest():
 
 @app.route('/mapTest')
 def mapTest():
-    query_stations = "SELECT s.name, s.latitude, s.longitude, s.picture, z.description as zone, case when i.station_bikes is null then 0 else cast(i.station_bikes as FLOAT)/cast(s.capacity as FLOAT) end as perc_bikes FROM ds4a_encicla_schema.zone z, ds4a_encicla_schema.station s left join ds4a_encicla_schema.inventory i on (s.station_id = i.station_id) WHERE s.zone_id = z.zone_id and i.date = (select max(date) from ds4a_encicla_schema.inventory)"
-    stations = postgresql_to_dataframe(param_dic, query_stations, ["name", "latitude", "longitude", "picture", "zone", "perc_bikes"])
+    query_stations = "SELECT s.name, s.latitude, s.longitude, s.picture, z.description as zone, case when i.station_bikes is null then 0 else cast(i.station_bikes as FLOAT)/cast(s.capacity as FLOAT) end as perc_bikes, (select weather_main from ds4a_encicla_schema.weather w where w.station_id = s.station_id and w.date = (select max(w2.date) from ds4a_encicla_schema.weather w2 where w2.station_id = s.station_id)) as weather FROM ds4a_encicla_schema.zone z, ds4a_encicla_schema.station s left join ds4a_encicla_schema.inventory i on (s.station_id = i.station_id) WHERE s.zone_id = z.zone_id and i.date = (select max(date) from ds4a_encicla_schema.inventory)"
+    stations = postgresql_to_dataframe(param_dic, query_stations, ["name", "latitude", "longitude", "picture", "zone", "perc_bikes", "weather"])
     folium_map = folium.Map(location=[stations["latitude"].mean(), stations["longitude"].mean()],
                             zoom_start=13,
                             tiles="OpenStreetMap")
@@ -108,10 +108,15 @@ def mapTest():
     for i in stations.index:
         perc_bikes = 1 if stations["perc_bikes"][i] > 1 else stations["perc_bikes"][i]
         color = 'black' if perc_bikes <= 0.10 else 'red' if (perc_bikes > 0.1 and perc_bikes <= 0.33) else 'orange' if (perc_bikes > 0.33 and perc_bikes <= 0.66) else 'green'
+        weather = stations["weather"][i]
+        weather_icon = 'glyphicon-certificate' if weather == 'Clear' else 'glyphicon-flash' if weather == 'Thunderstorm' else 'glyphicon-cloud-download' if (weather == 'Rain' or weather == 'Drizzle') else 'glyphicon-cloud'
+        weather_color = 'yellow' if weather == 'Clear' else 'blue'
+
         popup_station = "<b>Name:</b> " + stations["name"][i]
         popup_station += "<br><b>Latitude:</b> " + str(stations["latitude"][i])
         popup_station += "<br><b>Longitude:</b> " + str(stations["longitude"][i])
         popup_station += "<br><b>Zone:</b> " + str(stations["zone"][i])
+        popup_station += "<br><b>Weather:</b> <font color='" + weather_color + "'><i class='glyphicon " + weather_icon + "'></i></font> " + weather
         popup_station += "<br><b>Disponibility:</b> <b><font color='" + color + "'>" + str(round(perc_bikes*100,2)) + "%</font></b>"
         popup_station += "<br><b>Picture:</b> <img src='" + str(stations["picture"][i]) + "'>"
         folium.Marker([stations["latitude"][i], stations["longitude"][i]], popup=popup_station, icon=folium.Icon(color=color, icon='info-sign')).add_to(folium_map)

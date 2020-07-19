@@ -41,6 +41,8 @@ CREATE TABLE ds4a_encicla_schema.Inventory (
 -- ALTER TABLE ds4a_encicla_schema.Inventory DROP CONSTRAINT "FK_Inventory_Station_station_id";
 ALTER TABLE ds4a_encicla_schema.Inventory ADD CONSTRAINT "FK_Inventory_Station_station_id" FOREIGN KEY (station_id) REFERENCES ds4a_encicla_schema.Station(station_id);
 
+CREATE INDEX CONCURRENTLY inventory_date_station_index ON ds4a_encicla_schema.Inventory (date, station_id);
+
 -- DROP TABLE ds4a_encicla_schema.Weather;
 CREATE TABLE ds4a_encicla_schema.Weather (
 	weather_id varchar(200) NOT NULL,
@@ -63,3 +65,5 @@ CREATE TABLE ds4a_encicla_schema.Weather (
 
 -- ALTER TABLE ds4a_encicla_schema.Weather DROP CONSTRAINT "FK_Weather_Station_station_id";
 ALTER TABLE ds4a_encicla_schema.Weather ADD CONSTRAINT "FK_Weather_Station_station_id" FOREIGN KEY (station_id) REFERENCES ds4a_encicla_schema.Station(station_id);
+
+CREATE INDEX CONCURRENTLY weather_date_station_index ON ds4a_encicla_schema.Weather (date, station_id);
