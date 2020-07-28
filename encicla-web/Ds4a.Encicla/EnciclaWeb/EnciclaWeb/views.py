@@ -71,8 +71,8 @@ df['TIME'] = df['Date'].str[11:16]
 df['datetime'] = pd.to_datetime(df['YYYY'] + '-' + df['MM'] + '-' + df['DD'] + ' ' + df['TIME'], format='%Y-%m-%d %H:%M')
 df['HOUR'] = pd.DatetimeIndex(df['datetime']).hour
 
-query_stations = "SELECT s.station_id, s.name, s.latitude, s.longitude, s.picture, z.description as zone, case when i.station_bikes is null then 0 else cast(i.station_bikes as FLOAT)/cast(s.capacity as FLOAT) end as perc_bikes, (select weather_main from ds4a_encicla_schema.weather w where w.station_id = s.station_id and w.date = (select max(w2.date) from ds4a_encicla_schema.weather w2 where w2.station_id = s.station_id)) as weather FROM ds4a_encicla_schema.zone z, ds4a_encicla_schema.station s left join ds4a_encicla_schema.inventory i on (s.station_id = i.station_id) WHERE s.zone_id = z.zone_id and i.date = (select max(date) from ds4a_encicla_schema.inventory)"
-stations = postgresql_to_dataframe(param_dic, query_stations, ["station_id", "name", "latitude", "longitude", "picture", "zone", "perc_bikes", "weather"])
+query_stations = "SELECT s.station_id, s.name, s.latitude, s.longitude, s.picture, z.description as zone, case when i.station_bikes is null then 0 else cast(i.station_bikes as FLOAT)/cast(s.capacity as FLOAT) end as perc_bikes, i.station_bikes, (select weather_main from ds4a_encicla_schema.weather w where w.station_id = s.station_id and w.date = (select max(w2.date) from ds4a_encicla_schema.weather w2 where w2.station_id = s.station_id)) as weather FROM ds4a_encicla_schema.zone z, ds4a_encicla_schema.station s left join ds4a_encicla_schema.inventory i on (s.station_id = i.station_id) WHERE s.zone_id = z.zone_id and i.date = (select max(date) from ds4a_encicla_schema.inventory)"
+stations = postgresql_to_dataframe(param_dic, query_stations, ["station_id", "name", "latitude", "longitude", "picture", "zone", "perc_bikes", "station_bikes", "weather"])
     
 @app.route('/')
 @app.route('/home')
@@ -100,7 +100,7 @@ def stationDetails(id):
     availability_station = postgresql_to_dataframe(param_dic, query_av_station, ["station_id", "date", "station_bikes"])
     print(availability_station)
     # av_station = availability_station[availability_station['station_id'] == stations['station_id'][int(id)]].copy()
-    
+
     fig, ax = plt.subplots(constrained_layout=True)
     locator = mdates.AutoDateLocator()
     formatter = mdates.ConciseDateFormatter(locator)
@@ -143,7 +143,7 @@ def stationMap():
         popup_station += "    <br><b>Longitude:</b> " + str(stations["longitude"][i])
         popup_station += "    <br><b>Zone:</b> " + str(stations["zone"][i])
         popup_station += "    <br><b>Weather:</b> <font color='" + weather_color + "'><i class='glyphicon " + weather_icon + "'></i></font> " + weather
-        popup_station += "    <br><b>Availability:</b> <b><font color='" + color + "'>" + str(round(perc_bikes * 100, 2)) + "%</font></b>"
+        popup_station += "    <br><b>Availability:</b> <b><font color='" + color + "'>" + str(stations["station_bikes"][i]) + " (" + str(round(perc_bikes * 100, 2)) + "%)</font></b>"
         popup_station += "  </div>"  # column
         popup_station += "  <div class='col-md-6'>"
         popup_station += "    <br><b>Picture:</b><br><img src='" + str(stations["picture"][i]) + "' class='img-fluid' width='120'>"
