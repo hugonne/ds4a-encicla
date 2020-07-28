@@ -1,4 +1,8 @@
+Flask
 matplotlib
 numpy
 pandas
 seaborn
+urllib
+folium
+psycopg2

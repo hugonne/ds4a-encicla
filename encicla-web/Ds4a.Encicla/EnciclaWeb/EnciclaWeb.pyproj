@@ -17,7 +17,7 @@
     <SuppressCollectPythonCloudServiceFiles>true</SuppressCollectPythonCloudServiceFiles>
     <Name>EnciclaWeb</Name>
     <RootNamespace>EnciclaWeb</RootNamespace>
-    <InterpreterId>MSBuild|env|$(MSBuildProjectFullPath)</InterpreterId>
+    <InterpreterId>MSBuild|env64|$(MSBuildProjectFullPath)</InterpreterId>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -35,15 +35,22 @@
   <ItemGroup>
     <Folder Include="EnciclaWeb\" />
     <Folder Include="EnciclaWeb\data\" />
+    <Folder Include="EnciclaWeb\sql\" />
     <Folder Include="EnciclaWeb\static\" />
     <Folder Include="EnciclaWeb\static\content\" />
     <Folder Include="EnciclaWeb\static\fonts\" />
+    <Folder Include="EnciclaWeb\static\imgs\" />
     <Folder Include="EnciclaWeb\static\scripts\" />
     <Folder Include="EnciclaWeb\templates\" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="EnciclaWeb\data\inventory.csv" />
-    <Content Include="EnciclaWeb\templates\plot-test.html" />
+    <Content Include="EnciclaWeb\data\station_information.csv" />
+    <Content Include="EnciclaWeb\sql\Create_tables.sql" />
+    <Content Include="EnciclaWeb\sql\Triggers.sql" />
+    <Content Include="EnciclaWeb\static\imgs\Logo-encicla.svg" />
+    <Content Include="EnciclaWeb\templates\station-map.html" />
+    <Content Include="EnciclaWeb\templates\station-details.html" />
     <Content Include="requirements.txt" />
     <Content Include="EnciclaWeb\static\content\bootstrap.css" />
     <Content Include="EnciclaWeb\static\content\bootstrap.min.css" />
@@ -73,14 +80,14 @@
     <Content Include="EnciclaWeb\templates\layout.html" />
   </ItemGroup>
   <ItemGroup>
-    <Interpreter Include="env\">
-      <Id>env</Id>
-      <Version>3.8</Version>
-      <Description>env (Python 3.8 (32-bit))</Description>
+    <Interpreter Include="env64\">
+      <Id>env64</Id>
+      <Version>3.7</Version>
+      <Description>env64 (Python 3.7 (64-bit))</Description>
       <InterpreterPath>Scripts\python.exe</InterpreterPath>
       <WindowsInterpreterPath>Scripts\pythonw.exe</WindowsInterpreterPath>
       <PathEnvironmentVariable>PYTHONPATH</PathEnvironmentVariable>
-      <Architecture>X86</Architecture>
+      <Architecture>X64</Architecture>
     </Interpreter>
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.Web.targets" />

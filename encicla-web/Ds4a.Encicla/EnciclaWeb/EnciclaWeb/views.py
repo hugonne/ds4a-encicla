@@ -21,6 +21,7 @@ import base64
 import folium  #needed for interactive map
 from folium.plugins import HeatMap
 import psycopg2
+import time
 
 # Connection parameters, yours will be different
 param_dic = {
@@ -44,13 +45,10 @@ def postgresql_to_dataframe(param_dic, select_query, column_names):
     """
     Tranform a SELECT query into a pandas dataframe
     """
-    print("connecting...")
     conn = connect(param_dic)
     cursor = conn.cursor()
     try:
-        print("excecuting query...")
         cursor.execute(select_query)
-        print("finished query...")
     except (Exception, psycopg2.DatabaseError) as error:
         print("Error: %s" % error)
         cursor.close()
@@ -61,11 +59,8 @@ def postgresql_to_dataframe(param_dic, select_query, column_names):
     cursor.close()
 
     # We just need to turn it into a pandas dataframe
-    print("query to pandas...")
     df = pd.DataFrame(tupples, columns=column_names)
-    print("closing connection...")
     conn.close()
-    print("closed...")
     return df
 
 df = pd.read_csv("EnciclaWeb/data/inventory.csv", encoding='ISO-8859-1')
@@ -76,6 +71,9 @@ df['TIME'] = df['Date'].str[11:16]
 df['datetime'] = pd.to_datetime(df['YYYY'] + '-' + df['MM'] + '-' + df['DD'] + ' ' + df['TIME'], format='%Y-%m-%d %H:%M')
 df['HOUR'] = pd.DatetimeIndex(df['datetime']).hour
 
+query_stations = "SELECT s.station_id, s.name, s.latitude, s.longitude, s.picture, z.description as zone, case when i.station_bikes is null then 0 else cast(i.station_bikes as FLOAT)/cast(s.capacity as FLOAT) end as perc_bikes, (select weather_main from ds4a_encicla_schema.weather w where w.station_id = s.station_id and w.date = (select max(w2.date) from ds4a_encicla_schema.weather w2 where w2.station_id = s.station_id)) as weather FROM ds4a_encicla_schema.zone z, ds4a_encicla_schema.station s left join ds4a_encicla_schema.inventory i on (s.station_id = i.station_id) WHERE s.zone_id = z.zone_id and i.date = (select max(date) from ds4a_encicla_schema.inventory)"
+stations = postgresql_to_dataframe(param_dic, query_stations, ["station_id", "name", "latitude", "longitude", "picture", "zone", "perc_bikes", "weather"])
+    
 @app.route('/')
 @app.route('/home')
 def home():
@@ -84,32 +82,53 @@ def home():
         title='Home Page',
         year=datetime.now().year)
 
-@app.route('/plotTest')
-def plotTest():
+@app.route('/stationDetails', defaults={'id': None})
+@app.route('/stationDetails/<id>')
+def stationDetails(id):
+    print(id)
     """Renders the plot test page."""
-    df_temp = df[['HOUR', 'Station_name', 'Station_bikes']][df['Station_bikes'] == 0].groupby('HOUR').agg({'Station_name':'size'}).reset_index()
-    df_temp.columns = ['HOUR', 'Stations_without_bikes']
-    plt.plot(df_temp['HOUR'], df_temp['Stations_without_bikes'])
+    # df_temp = df[['HOUR', 'Station_name', 'Station_bikes']][df['Station_bikes'] == 0].groupby('HOUR').agg({'Station_name':'size'}).reset_index()
+    # df_temp.columns = ['HOUR', 'Stations_without_bikes']
+    # plt.plot(df_temp['HOUR'], df_temp['Stations_without_bikes'])
+    # img = io.BytesIO()  # create the buffer
+    # plt.savefig(img, format='png')  # save figure to the buffer
+    # img.seek(0)  # rewind your buffer
+    # plot_data = urllib.parse.quote(base64.b64encode(img.read()).decode()) # base64 encode & URL-escape
+
+    # query_av_station = "select i.station_id, i.date, i.station_bikes from ds4a_encicla_schema.inventory i where i.date > CURRENT_DATE"
+    query_av_station = "select i.station_id, i.date, i.station_bikes from ds4a_encicla_schema.inventory i where i.date > (CURRENT_DATE - 1) and i.station_id = " + id
+    availability_station = postgresql_to_dataframe(param_dic, query_av_station, ["station_id", "date", "station_bikes"])
+    print(availability_station)
+    # av_station = availability_station[availability_station['station_id'] == stations['station_id'][int(id)]].copy()
+    
+    fig, ax = plt.subplots(constrained_layout=True)
+    locator = mdates.AutoDateLocator()
+    formatter = mdates.ConciseDateFormatter(locator)
+    ax.xaxis.set_major_locator(locator)
+    ax.xaxis.set_major_formatter(formatter)
+    ax.plot(availability_station['date'], availability_station['station_bikes'])
+    ax.set_title('Availability by Hour')
     img = io.BytesIO()  # create the buffer
     plt.savefig(img, format='png')  # save figure to the buffer
     img.seek(0)  # rewind your buffer
-    plot_data = urllib.parse.quote(base64.b64encode(img.read()).decode()) # base64 encode & URL-escape
-    return render_template('plot-test.html',
+    plot_data = urllib.parse.quote(base64.b64encode(img.read()).decode())  # base64 encode & URL-escape
+    plt.close()
+    # popup_station += "    <br><img src='data:image/png;base64, " + plot_data + "' width='350' class='img-fluid'>"
+
+    return render_template('station-details.html',
         title='Some Plots',
-        inventories = df_temp.head(10).to_html(classes='table table-striped'),
+        # inventories = df_temp.head(10).to_html(classes='table table-striped'),
         plot_url = plot_data,
         year=datetime.now().year)
 
-@app.route('/mapTest')
-def mapTest():
-    query_stations = "SELECT s.station_id, s.name, s.latitude, s.longitude, s.picture, z.description as zone, case when i.station_bikes is null then 0 else cast(i.station_bikes as FLOAT)/cast(s.capacity as FLOAT) end as perc_bikes, (select weather_main from ds4a_encicla_schema.weather w where w.station_id = s.station_id and w.date = (select max(w2.date) from ds4a_encicla_schema.weather w2 where w2.station_id = s.station_id)) as weather FROM ds4a_encicla_schema.zone z, ds4a_encicla_schema.station s left join ds4a_encicla_schema.inventory i on (s.station_id = i.station_id) WHERE s.zone_id = z.zone_id and i.date = (select max(date) from ds4a_encicla_schema.inventory)"
-    stations = postgresql_to_dataframe(param_dic, query_stations, ["station_id", "name", "latitude", "longitude", "picture", "zone", "perc_bikes", "weather"])
+@app.route('/stationMap')
+def stationMap():
+    # query_stations = "SELECT s.station_id, s.name, s.latitude, s.longitude, s.picture, z.description as zone, case when i.station_bikes is null then 0 else cast(i.station_bikes as FLOAT)/cast(s.capacity as FLOAT) end as perc_bikes, (select weather_main from ds4a_encicla_schema.weather w where w.station_id = s.station_id and w.date = (select max(w2.date) from ds4a_encicla_schema.weather w2 where w2.station_id = s.station_id)) as weather FROM ds4a_encicla_schema.zone z, ds4a_encicla_schema.station s left join ds4a_encicla_schema.inventory i on (s.station_id = i.station_id) WHERE s.zone_id = z.zone_id and i.date = (select max(date) from ds4a_encicla_schema.inventory)"
+    # stations = postgresql_to_dataframe(param_dic, query_stations, ["station_id", "name", "latitude", "longitude", "picture", "zone", "perc_bikes", "weather"])
     folium_map = folium.Map(location=[stations["latitude"].mean(), stations["longitude"].mean()],
                             zoom_start=13,
                             tiles="OpenStreetMap")
 
-    query_av_station = "select i.station_id, i.date, i.station_bikes from ds4a_encicla_schema.inventory i where i.date > CURRENT_DATE"
-    availability_station = postgresql_to_dataframe(param_dic, query_av_station, ["station_id", "date", "station_bikes"])
     for i in stations.index:
         perc_bikes = 1 if stations["perc_bikes"][i] > 1 else stations["perc_bikes"][i]
         color = 'black' if perc_bikes <= 0.10 else 'red' if (perc_bikes > 0.1 and perc_bikes <= 0.33) else 'orange' if (perc_bikes > 0.33 and perc_bikes <= 0.66) else 'green'
@@ -117,7 +136,7 @@ def mapTest():
         weather_icon = 'glyphicon-certificate' if weather == 'Clear' else 'glyphicon-flash' if weather == 'Thunderstorm' else 'glyphicon-cloud-download' if (weather == 'Rain' or weather == 'Drizzle') else 'glyphicon-cloud'
         weather_color = 'yellow' if weather == 'Clear' else 'blue'
 
-        popup_station = "<div class='row'>"
+        popup_station = "<div class='row' style='width: 300px'>"
         popup_station += "  <div class='col-md-6'>"
         popup_station += "    <b>Name:</b> " + stations["name"][i]
         popup_station += "    <br><b>Latitude:</b> " + str(stations["latitude"][i])
@@ -137,31 +156,20 @@ def mapTest():
         popup_station += "</div>"  # row
         popup_station += "<div class='row'>"
         popup_station += "  <div class='col-md-12'>"
-        popup_station += "    <br><a href='/plotTest'>Click here for more details</a>"
+        popup_station += "    <br><a href='/stationDetails/" + str(i) + "'>Click here for more details</a>"
         popup_station += "  </div>"  # column
         popup_station += "</div>"  # row
         popup_station += "<div class='row'>"
         ##
-        av_station = availability_station[availability_station['station_id'] == stations['station_id'][i]].copy()
-        fig, ax = plt.subplots(constrained_layout=True)
-        locator = mdates.AutoDateLocator()
-        formatter = mdates.ConciseDateFormatter(locator)
-        ax.xaxis.set_major_locator(locator)
-        ax.xaxis.set_major_formatter(formatter)
-        ax.plot(av_station['date'], av_station['station_bikes'])
-        ax.set_title('Availability by hour')
-        img = io.BytesIO()  # create the buffer
-        plt.savefig(img, format='png')  # save figure to the buffer
-        img.seek(0)  # rewind your buffer
-        plot_data = urllib.parse.quote(base64.b64encode(img.read()).decode())  # base64 encode & URL-escape
-        plt.close()
-        popup_station += "    <br><img src='data:image/png;base64, " + plot_data + "' width='350' class='img-fluid'>"
+        
         popup_station += "  </div>"  #column
         popup_station += "</div>"  #row
-
         popup_complete = folium.Popup(html=popup_station)
 
-        folium.Marker([stations["latitude"][i], stations["longitude"][i]], popup=popup_complete, icon=folium.Icon(color=color, icon='info-sign'), show=True).add_to(folium_map)
+        folium.Marker([stations["latitude"][i], stations["longitude"][i]], 
+                      popup=popup_complete, 
+                      icon=folium.Icon(color=color, icon='info-sign'),
+                      show=True).add_to(folium_map)
 
     # first, force map to render as HTML, for us to dissect
     _ = folium_map._repr_html_()
@@ -175,8 +183,8 @@ def mapTest():
     # html to be included in <script>
     script_txt = Markup(folium_map.get_root().script.render())
 
-    return render_template('map-test.html',
-        title='Station map',
+    return render_template('station-map.html',
+        title='Station Map',
         map_div = Markup(map_div),
         hdr_txt = Markup(hdr_txt),
         script_txt = Markup(script_txt),
