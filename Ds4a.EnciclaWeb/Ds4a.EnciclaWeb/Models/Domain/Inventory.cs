@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Ds4a.EnciclaWeb.Models
+namespace Ds4a.EnciclaWeb.Models.Domain
 {
     public partial class Inventory
     {

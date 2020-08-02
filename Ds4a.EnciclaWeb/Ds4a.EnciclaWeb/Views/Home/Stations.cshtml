@@ -1,10 +1,12 @@
-﻿@model StationDetailsViewModel
+﻿@using Microsoft.AspNetCore.Routing
+@model StationDetails
 
 @{
-    ViewData["Title"] = "Stations";
+    ViewData["Title"] = "Station Details";
     var currentDate = string.IsNullOrEmpty(Context.Request.Query["date"]) ?
-        DateTime.Today.ToLongDateString() :
-        Convert.ToDateTime(Context.Request.Query["date"]).ToLongDateString();
+        DateTime.Today :
+        Convert.ToDateTime(Context.Request.Query["date"]);
+    var stationId = Context.GetRouteData().Values["id"];
 }
 <h1>
     <i class="fas fa-charging-station text-info"></i>
@@ -13,24 +15,42 @@
 
 @if (Model != null)
 {
+    string iconClass;
+    if (Model.Station.CurrentAvailability < 0.1)
+    {
+        iconClass = "fas fa-thumbs-down text-dark";
+    }
+    else if (Model.Station.CurrentAvailability < 0.33)
+    {
+        iconClass = "fas fa-thumbs-down text-danger";
+    }
+    else if (Model.Station.CurrentAvailability < 0.66)
+    {
+        iconClass = "fas fa-thumbs-up text-warning";
+    }
+    else
+    {
+        iconClass = "fas fa-thumbs-up text-success";
+    }
+
+    <div class="form-group">
+        @Html.Label("Select a Date")
+        @Html.TextBox("SelectedDate", currentDate.ToString("yyyy-MM-dd"), new {type = "date", @class = "form-control"})
+    </div>
+
     <div class="row">
         <div class="col-md-9">
-            <h3>@Model.Station.Name</h3>
+            <h3>
+                <i class="fas fa-biking text-primary"></i>
+                @Model.Station.Name
+            </h3>
             <div class="row">
                 <div class="col-md-5">
-                    <strong>Zone:</strong>
+                    <strong class="text-info">Zone:</strong>
                 </div>
                 <div class="col-md-7">
                     <i class="fas fa-search-location"></i>
                     @Model.Station.Zone?.Name
-                </div>
-                <div class="col-md-5">
-                    <strong class="text-info">Weather:</strong>
-                </div>
-                <div class="col-md-7">
-                    <i class="fas fa-cloud-showers-heavy text-primary"></i>
-                    @*TODO: Calculate weather for day*@
-                    Rainy
                 </div>
                 <div class="col-md-5">
                     <strong class="text-info">Capacity:</strong>
@@ -39,27 +59,46 @@
                     <i class="fas fa-bicycle"></i>
                     @Model.Station.Capacity
                 </div>
-                <div class="col-md-5">
-                    <strong class="text-secondary">Current Availability:</strong>
-                </div>
-                <div class="col-md-7">
-                    <i class="fas fa-thumbs-up text-success"></i>
-                    55%
-                </div>
-                <div class="col-md-5">
-                    <strong class="text-secondary">Availability in Next Hour:</strong>
-                </div>
-                <div class="col-md-7">
-                    <i class="fas fa-thumbs-up text-danger"></i>
-                    15%
-                </div>
+                @if (currentDate == DateTime.Today)
+                {
+                    <div class="col-md-5">
+                        <strong class="text-secondary">Weather:</strong>
+                    </div>
+                    <div class="col-md-7">
+                        <i class="fas fa-cloud-showers-heavy text-primary"></i>
+                        @*TODO: Calculate weather for day*@
+                        Rainy
+                    </div>
+                    <div class="col-md-5">
+                        <strong class="text-secondary">Current Availability:</strong>
+                    </div>
+                    <div class="col-md-7">
+                        <i class="@iconClass"></i>
+                        @Math.Round(Model.Station.CurrentAvailability * 100)% (@Model.Station.CurrentBikes bicycles)
+                    </div>
+                    <div class="col-md-5">
+                        <strong class="text-secondary">Availability in Next 10 Mins.:</strong>
+                    </div>
+                    <div class="col-md-7">
+                        @if (Model.Station.PredictedBikes == -1)
+                        {
+                            <span>Prediction in progress...</span>
+                        }
+                        else
+                        {
+                            <i class="@iconClass"></i>
+                            <span>@Math.Round(Model.Station.PredictedAvailability * 100)% (@Model.Station.PredictedBikes bicycles)</span>
+                        }
+                    </div>
+                }
             </div>
         </div>
         <div class="col-md-3">
-            <img src="@Model.Station.Picture" class="img-fluid" />
+            <img src="@Model.Station.Picture" class="img-fluid"/>
         </div>
     </div>
     <div class="chart" id="bargraph"></div>
+    <div class="chart" id="heatmapgraph"></div>
     <button class="btn btn-warning" onclick="window.history.back()">
         <i class="fas fa-arrow-left"></i>
         Go Back
@@ -67,33 +106,54 @@
 }
 else
 {
-    @using (Html.BeginForm())
-    {
-        <div class="form-group">
-            @Html.Label("Select a Station")
-            @Html.DropDownList("StationList", ViewData["StationList"] as SelectList, "Select a Station...", new { @class = "form-control" })
-        </div>
-    }
+    <div class="form-group">
+        @Html.Label("Select a Station")
+        @Html.DropDownList("StationList", ViewData["StationList"] as SelectList, "Select a Station...", new {@class = "form-control"})
+    </div>
 }
 
 @section Scripts {
     @if (Model != null)
     {
         <script>
-            var graphs = @Html.Raw(Model.DailyCapacityJson);
-            var layout = {
-                title: 'Bicycle Availability for @currentDate',
+            var capacityTrace = @Html.Raw(Model.DailyCapacityJson);
+            var predictionsTrace = @Html.Raw(Model.DailyPredictionsJson);
+            var hourlyAverageTrace = @Html.Raw(Model.HourlyAverage);
+            var lineChartData = [capacityTrace, predictionsTrace];
+            var heatMapData = [hourlyAverageTrace];
+            var lineLayout = {
+                title: 'Bicycle Availability for @currentDate.ToLongDateString()',
                 xaxis: {
                     title: 'Time'
                 },
                 yaxis: {
                     title: 'Bicycle Count'
+                    //range: [0, 20]
                 }
             };
-            Plotly.plot('bargraph', graphs, layout);
+            var heatLayout = {
+                title: 'Average Inventory By Hour/Day',
+                xaxis: {
+                    title: 'Days'
+                },
+                yaxis: {
+                    title: 'Hours'
+                }
+            };
+            Plotly.plot('bargraph', lineChartData, lineLayout);
+            Plotly.newPlot('heatmapgraph', heatMapData, heatLayout);
+
+            $("#SelectedDate").change(function () {
+                window.location.href = "/Home/Stations/" + @stationId + "?date=" + this.value;
+            });
         </script>
     }
-    <script>$("#StationList").change(function () {
-            window.location.href = "/Home/Stations/" + this.value;
-        });</script>
+    else
+    {
+        <script>
+            $("#StationList").change(function () {
+                window.location.href = "/Home/Stations/" + this.value;
+            });
+        </script>
+    }
 }

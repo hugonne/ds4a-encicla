@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Ds4a.EnciclaWeb.Models;
 using System.Net.Http;
+using Ds4a.EnciclaWeb.Models.Domain;
+using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
@@ -15,10 +17,13 @@ namespace Ds4a.EnciclaWeb.Controllers
     public class HomeController : Controller
     {
         private readonly ILogger<HomeController> _logger;
+        private readonly string _baseUrl;
 
-        public HomeController(ILogger<HomeController> logger)
+        public HomeController(ILogger<HomeController> logger, IHttpContextAccessor httpContextAccessor)
         {
             _logger = logger;
+            var http = httpContextAccessor.HttpContext.Request.IsHttps ? "https" : "http";
+            _baseUrl = $"{http}://{httpContextAccessor.HttpContext.Request.Host.Value}";
         }
 
         /// <summary>
@@ -34,9 +39,13 @@ namespace Ds4a.EnciclaWeb.Controllers
         /// Map View. Shows a map with all stations and their status.
         /// </summary>
         /// <returns></returns>
-        public IActionResult Map()
+        public async Task<IActionResult> Map()
         {
-            return View();
+            var client = new HttpClient();
+            string response = await client.GetStringAsync($"{_baseUrl}/api/stations?includeAvailability=true");
+            var stations = JsonConvert.DeserializeObject<List<Station>>(response);
+
+            return View(stations);
         }
 
         /// <summary>
@@ -47,6 +56,7 @@ namespace Ds4a.EnciclaWeb.Controllers
         /// Optional parameter. If present in route, site renders details for that station.
         /// If not, site renders a list for the user to select a Station.
         /// </param>
+        /// <param name="date">Optional parameter. If not sent, data is queried for the current day.</param>
         /// <returns></returns>
         public async Task<IActionResult> Stations(short? id, DateTime? date)
         {
@@ -54,39 +64,53 @@ namespace Ds4a.EnciclaWeb.Controllers
             {
                 var client = new HttpClient();
                 string response;
+                var stationDetails = new StationDetails();
 
                 //If no id is provided, get stations list and don't return a model to the view.
                 if (!id.HasValue)
                 {
-                    response = await client.GetStringAsync($"https://localhost:5001/api/stations");
-                    var stationList = JsonConvert.DeserializeObject<List<StationListViewModel>>(response);
+                    response = await client.GetStringAsync($"{_baseUrl}/api/stations/forList");
+                    var stationList = JsonConvert.DeserializeObject<List<StationList>>(response);
                     ViewData["StationList"] = new SelectList(stationList, "StationId", "Name");
                     return View();
                 }
 
                 //If no date is provided, send today by default.
-                if (date == null)
-                {
-                    date = DateTime.Today;
-                }
+                date ??= DateTime.Today;
 
-                response = await client.GetStringAsync($"https://localhost:5001/api/stations/{id}");
+                #region Station Info
+
+                response = await client.GetStringAsync($"{_baseUrl}/api/stations/{id}");
                 var station = JsonConvert.DeserializeObject<Station>(response);
-
                 if (station == null || station.StationId == 0)
                 {
                     return NotFound();
                 }
+                stationDetails.Station = station;
 
-                //This response doesn't need to be deserialized to an object, because raw JSON
+                #endregion
+
+                #region Line Chart JSON data
+
+                //This responses don't need to be deserialized to an object, because raw JSON
                 //is required by Plotly for the chart.
-                response = await client.GetStringAsync($"https://localhost:5001/api/stations/{id}/dailyCapacity?date={date}");
+                response = await client.GetStringAsync($"{_baseUrl}/api/stations/{id}/dailyCapacity?date={date}");
+                stationDetails.DailyCapacityJson = response;
+                
+                response = await client.GetStringAsync($"{_baseUrl}/api/stations/{id}/dailyPredictions?date={date}");
+                stationDetails.DailyPredictionsJson = response;
 
-                var stationDetails = new StationDetailsViewModel
-                {
-                    Station = station,
-                    DailyCapacityJson = response
-                };
+                #endregion
+
+                #region Heat Map JSON Data
+
+                //This responses don't need to be deserialized to an object, because raw JSON
+                //is required by Plotly for the chart.
+                response = await client.GetStringAsync($"{_baseUrl}/api/stations/{id}/hourlyAverage");
+                stationDetails.HourlyAverage = response;
+
+                #endregion
+
 
                 return View(stationDetails);
             }

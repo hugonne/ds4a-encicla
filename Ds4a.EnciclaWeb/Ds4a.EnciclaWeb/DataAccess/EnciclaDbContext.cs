@@ -1,4 +1,5 @@
 ﻿using Ds4a.EnciclaWeb.Models;
+using Ds4a.EnciclaWeb.Models.Domain;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ds4a.EnciclaWeb.DataAccess
@@ -18,6 +19,7 @@ namespace Ds4a.EnciclaWeb.DataAccess
         public virtual DbSet<Station> Stations { get; set; }
         public virtual DbSet<Weather> Weather { get; set; }
         public virtual DbSet<Zone> Zones { get; set; }
+        public virtual DbSet<AvgInvByStationHour> AvgInvByStationHours { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -30,6 +32,20 @@ namespace Ds4a.EnciclaWeb.DataAccess
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<AvgInvByStationHour>(entity =>
+            {
+                entity.ToView("avg_inv_by_station_hour", "ds4a_encicla_schema").HasNoKey();
+                entity.Property(e => e.StationId).HasColumnName("station_id");
+                entity.Property(e => e.Hour).HasColumnName("hour");
+                entity.Property(e => e.Monday).HasColumnName("monday");
+                entity.Property(e => e.Tuesday).HasColumnName("tuesday");
+                entity.Property(e => e.Wednesday).HasColumnName("wednesday");
+                entity.Property(e => e.Thursday).HasColumnName("thursday");
+                entity.Property(e => e.Friday).HasColumnName("friday");
+                entity.Property(e => e.Saturday).HasColumnName("saturday");
+                entity.Property(e => e.Sunday).HasColumnName("sunday");
+            });
+
             modelBuilder.Entity<Inventory>(entity =>
             {
                 entity.ToTable("inventory", "ds4a_encicla_schema");
@@ -60,11 +76,6 @@ namespace Ds4a.EnciclaWeb.DataAccess
                 entity.Property(e => e.StationPlacesState)
                     .HasColumnName("station_places_state")
                     .HasColumnType("character varying");
-
-                entity.HasOne(d => d.Station)
-                    .WithMany(p => p.Inventory)
-                    .HasForeignKey(d => d.StationId)
-                    .HasConstraintName("FK_Inventory_Station_station_id");
             });
 
             modelBuilder.Entity<Prediction>(entity =>

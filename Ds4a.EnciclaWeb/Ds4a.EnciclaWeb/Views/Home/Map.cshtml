@@ -1,5 +1,141 @@
-﻿@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
+﻿@model List<Ds4a.EnciclaWeb.Models.Domain.Station>
+
 @{
+    ViewData["Title"] = "Station Map";
+}
+
+<h1>
+    <i class="fas fa-map-marked-alt text-success"></i>
+    @ViewData["Title"]
+</h1>
+<div class="row">
+    <div class="col-md-12">
+        <div style="width: 100%; height: calc(100vh - 210px);" id="mapContainer"></div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        var platform = new H.service.Platform({
+            'apikey': '7RhzRiZc69Teu1rVIOupJhABe4i1aYYpm87pAUWAvDw'
+        });
+
+        var defaultLayers = platform.createDefaultLayers();
+
+        var lat = 6.2227;
+        var lng = -75.5875;
+
+        // Instantiate (and display) a map object:
+        var map = new H.Map(
+            document.getElementById('mapContainer'),
+            defaultLayers.vector.normal.map,
+            {
+                zoom: 14,
+                center: { lat: lat, lng: lng }
+            });
+        //Keep aspect ration even when windows resizes
+        window.addEventListener("resize",
+            () => {
+                map.getViewPort().resize();
+                map.setCenter({ lat: lat, lng: lng });
+            });
+        //Set cursor pointer on marker objects
+        map.addEventListener("pointermove", function (event) {
+            if (event.target instanceof H.map.Marker) {
+                map.getViewPort().element.style.cursor = 'pointer';
+            } else {
+                map.getViewPort().element.style.cursor = 'auto';
+            }
+        }, false);
+
+        var mapEvents = new H.mapevents.MapEvents(map);
+        var behavior = new H.mapevents.Behavior(mapEvents);
+
+        var ui = H.ui.UI.createDefault(map, defaultLayers);
+
+        //Get user's current location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(position => {
+                lat = position.coords.latitude;
+                lng = position.coords.longitude;
+                var blueIcon = new H.map.Icon('/img/blue-marker.png');
+
+                var marker = new H.map.Marker({ lat: lat, lng: lng }, { icon: blueIcon });
+                marker.addEventListener("tap", function (event) {
+                    var bubble = new H.ui.InfoBubble(event.target.getGeometry(), {
+                        // read custom data
+                        content: event.target.getData()
+                    });
+                    // show info bubble
+                    ui.addBubble(bubble);
+                }, false);
+                marker.setData('<div style="width: 200px"><p>My Current Location</p></div>');
+                map.addObject(marker);
+
+                //Center map in user's location
+                map.setCenter({ lat: lat, lng: lng });
+                map.setZoom(14);
+            });
+        } else {
+            console.error("Geolocation is not supported by this browser!");
+        }
+    </script>
+
+    @foreach (var station in Model)
+    {
+        string iconUrl;
+        string iconClass;
+        if (station.CurrentAvailability < 0.1)
+        {
+            iconUrl = "/img/black-marker.png";
+            iconClass = "fas fa-thumbs-down text-dark";
+        }
+        else if (station.CurrentAvailability < 0.33)
+        {
+            iconUrl = "/img/red-marker.png";
+            iconClass = "fas fa-thumbs-down text-danger";
+        }
+        else if (station.CurrentAvailability < 0.66)
+        {
+            iconUrl = "/img/yellow-marker.png";
+            iconClass = "fas fa-thumbs-up text-warning";
+        }
+        else
+        {
+            iconUrl = "/img/green-marker.png";
+            iconClass = "fas fa-thumbs-up text-success";
+        }
+    <script>
+            var marker = new H.map.Marker({ lat: @station.Latitude, lng: @station.Longitude }, { icon: new H.map.Icon('@iconUrl') });
+            marker.addEventListener("tap", function (event) {
+                var bubble =  new H.ui.InfoBubble(event.target.getGeometry(), {
+                    //Read marker data (HTML)
+                    content: event.target.getData()
+                });
+                //Show info bubble
+                ui.addBubble(bubble);
+            }, false);
+            var html = '<div style="width: 430px">';
+            html += '<h4><a href="/home/stations/@station.StationId"><i class="fas fa-biking mr-1"></i>@station.Name</a></h4>';
+            html += '<div class="row">';
+            html += '<div class="col-md-6"><strong class="text-info">Zone:</strong></div>';
+            html += '<div class="col"><i class="fas fa-search-location mr-1"></i>@station.Zone?.Name</div>';
+            html += '</div>';
+            html += '<div class="row">';
+            html += '<div class="col-md-6"><strong class="text-info">Capacity:</strong></div>';
+            html += '<div class="col"><i class="fas fa-bicycle mr-1"></i>@station.Capacity</div>';
+            html += '</div>';
+            html += '<div class="row">';
+            html += '<div class="col-md-6"><strong class="text-info">Availability:</strong></div>';
+            html += '<div class="col"><i class="@iconClass mr-1"></i>@Math.Round(station.CurrentAvailability * 100)% (@station.CurrentBikes bicycles)</div>';
+            html += '</div>';
+            html += '<div class="row">';
+            html += '<div class="col-md-6"><strong class="text-info">Availability (Next 10 Mins.):</strong></div>';
+            html += '<div class="col"><i class="@iconClass mr-1"></i>@Math.Round(station.PredictedAvailability * 100)% (@station.PredictedBikes bicycles)</div>';
+            html += '</div>';
+            html += '</div>';
+            marker.setData(html);
+            map.addObject(marker);
+    </script>
+    }
 }

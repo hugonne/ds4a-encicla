@@ -1,13 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Ds4a.EnciclaWeb.Models
+namespace Ds4a.EnciclaWeb.Models.Domain
 {
     public partial class Station
     {
         public Station()
         {
-            Inventory = new HashSet<Inventory>();
+            //Inventory = new HashSet<Inventory>();
             Weather = new HashSet<Weather>();
         }
 
@@ -24,7 +24,23 @@ namespace Ds4a.EnciclaWeb.Models
         public string Picture { get; set; }
 
         public Zone Zone { get; set; }
-        public ICollection<Inventory> Inventory { get; set; }
+        //public ICollection<Inventory> Inventory { get; set; }
         public ICollection<Weather> Weather { get; set; }
+
+        #region Calculated Properties
+
+        [NotMapped]
+        public int CurrentBikes { get; set; }
+
+        [NotMapped]
+        public double CurrentAvailability => Capacity == 0 ? 0 : (double)CurrentBikes / Capacity;
+
+        [NotMapped]
+        public int PredictedBikes { get; set; }
+
+        [NotMapped]
+        public double PredictedAvailability => Capacity == 0 ? 0 : (double)PredictedBikes / Capacity;
+
+        #endregion
     }
 }
