@@ -34,6 +34,9 @@ namespace Ds4a.EnciclaWeb.Controllers.Api
 
             var maxInventoryDate = _context.Inventories.Max(a => a.Date);
             var inventories = _context.Inventories
+                .Where(a => 
+                    a.StationId.HasValue &&
+                    stations.Select(b => b.StationId).Contains(a.StationId.Value))
                 .Include(a => a.Station)
                 .ThenInclude(a => a.Zone)
                 .Where(a => a.Date == maxInventoryDate);
@@ -52,11 +55,14 @@ namespace Ds4a.EnciclaWeb.Controllers.Api
                 .Include(a => a.Inventory)
                 .ThenInclude(a => a.Station)
                 .ThenInclude(a => a.Zone)
-                .Where(a => a.PredictDate == maxPredictionDate);
+                .Where(a => 
+                    a.PredictDate == maxPredictionDate &&
+                    a.Inventory.StationId.HasValue &&
+                    stations.Select(b => b.StationId).Contains(a.Inventory.StationId.Value));
             foreach (var prediction in predictions)
             {
                 stations.First(a => a.StationId == prediction.Inventory.Station.StationId)
-                        .CurrentBikes = prediction.PredictBikes ?? -1;
+                        .PredictedBikes = prediction.PredictBikes ?? -1;
             }
 
             #endregion
@@ -182,6 +188,21 @@ namespace Ds4a.EnciclaWeb.Controllers.Api
                 });
             }
             return plotData;
+        }
+
+        [HttpGet("stationsWithoutBikesNextHour", Name = "GetStationsWithoutBikesNextHour")]
+        public IEnumerable<Station> GetStationsWithoutBikesNextHour()
+        {
+            //Get from hourly predictions, those stations with prediction value in 0 in last hour,
+            //which is always the max predicted date.
+            var maxPredictionDate = _context.PredictionsOneHour.Max(a => a.PredictDate);
+            var predictions = _context.PredictionsOneHour
+                .Include(a => a.Inventory)
+                .ThenInclude(a => a.Station)
+                .ThenInclude(a => a.Zone)
+                .Where(a => a.PredictDate == maxPredictionDate && a.PredictBikes == 0);
+
+            return predictions.Select(a => a.Inventory.Station).OrderBy(a => a.Name);
         }
     }
 }

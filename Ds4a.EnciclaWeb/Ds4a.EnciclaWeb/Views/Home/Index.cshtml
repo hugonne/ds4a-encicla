@@ -19,39 +19,42 @@
     <div class="col-md-4">
         <h2>Business Problem</h2>
         <p>
-            Giving insights about a dataset is the aim of each data science project, in this specific project route
-            optimization and demand predicting could help Encicla in:
+            Encicla, like other bike-sharing systems, has a fluctuating demand for bicycles in some 
+            stations and available bicycles in others, leading to unsatisfied users which is a common 
+            problem in public bicycle sharing systems (Sun et al, 2018; SCMP,2017). 
+            Given this, a systemic approach is required to handle this problem.
         </p>
-        <ul>
-            <li>Proper Planning and cost optimization routes for bicycles supply.</li>
-            <li>Customer/users Optimal offers according with available options.</li>
-            <li>Increasing the accuracy of pre-decided arrival time of bicycles to Encicla Stations.</li>
-            <li>Delivering more in less time and minor distance.</li>
-            <li>Improved customer assistance experience through visualization availability.</li>
-            <li>Accurate ETA showing planned routes and possible stoppages for bicycles supply.</li>
-        </ul>
+        <p>
+            To solve this situation, bikes in the system are redistributed by different bikes providers 
+            (Salmon, 2020), this is removing bicycles from some stations and transferring them to other 
+            stations, using a dedicated fleet of trucks. Cities invest great economic efforts to 
+            redistribute bikes in these redistribution process.
+        </p>
     </div>
     <div class="col-md-4">
-        <h2>Methods</h2>
+        <h2>Business Impact</h2>
         <p>
-            One key component of understanding the patterns in Encicla's bicycle usage is providing
-            high-quality visualizations of his historical user's interactions with Encicla's system.
-            Here are some of the static and interactive visualizations we will provide:
+            In this specific project demand prediction could help Encicla to solve problems in terms of the
+            effectiveness of the public bicycle system in the city of Medellin (El Colombiano, 2017; El Colombiano,2020).
+        </p>
+        <p>
+            Given this, models to solve this situation are proposed below:
         </p>
         <ul>
             <li>
-                Encycla's bicycles usage over time (historical usage by weekdays-hours and week-days)
+                Customer/users Optimal offers related to available options by station using forecast/ 
+                machine learning (ML) modeling.
             </li>
             <li>
-                Inventory nominal value against real value (+ 1 static plot with interactions over stations)
+                Hourly forecast model so that an alarm can be generated one hour in advance for provisioning 
+                trucks (so they will know where to go!)
             </li>
             <li>
-                Optimal Route supply visualization (+ 1 static plot with interactions over stations)
-            </li>
-            <li>
-                Performance metrics of each model vs reality (Back testing metrics)
+                mproved customer assistance experience through map visualization of bikes availability with 
+                real time weather status by station with the use of a public weather API.
             </li>
         </ul>
+        
     </div>
     <div class="col-md-4">
         <h2>Data</h2>
@@ -59,6 +62,11 @@
             The dataset consists of public information about mobility of Medellin:
         </p>
         <ul>
+            <li>
+                <a href="https://ds4ateam27.azurewebsites.net/swagger" target="_blank">
+                    Models application: Final multi-cloud and API interfaces architecture
+                </a>
+            </li>
             <li>
                 <a href="https://datosabiertos.metropol.gov.co/dataset/estaciones-encicla" target="_blank">
                     Location of the Encicla public bike-sharing system stations

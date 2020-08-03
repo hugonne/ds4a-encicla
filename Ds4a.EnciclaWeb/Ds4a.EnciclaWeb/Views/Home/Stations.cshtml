@@ -34,8 +34,8 @@
     }
 
     <div class="form-group">
-        @Html.Label("Select a Date")
-        @Html.TextBox("SelectedDate", currentDate.ToString("yyyy-MM-dd"), new {type = "date", @class = "form-control"})
+        <label>Select a Date")</label>
+        <input id="selectedDate" type="date" class="form-control" value="@currentDate.ToString("yyyy-MM-dd")"/>
     </div>
 
     <div class="row">
@@ -107,8 +107,10 @@
 else
 {
     <div class="form-group">
-        @Html.Label("Select a Station")
-        @Html.DropDownList("StationList", ViewData["StationList"] as SelectList, "Select a Station...", new {@class = "form-control"})
+        <label>Select a Station</label>
+        <select id="stationList" class="form-control" asp-items="@(ViewData["StationList"] as SelectList)">
+            <option>Select a Station...</option>
+        </select>
     </div>
 }
 
@@ -143,7 +145,7 @@ else
             Plotly.plot('bargraph', lineChartData, lineLayout);
             Plotly.newPlot('heatmapgraph', heatMapData, heatLayout);
 
-            $("#SelectedDate").change(function () {
+            $("#selectedDate").change(function () {
                 window.location.href = "/Home/Stations/" + @stationId + "?date=" + this.value;
             });
         </script>
@@ -151,7 +153,7 @@ else
     else
     {
         <script>
-            $("#StationList").change(function () {
+            $("#stationList").change(function () {
                 window.location.href = "/Home/Stations/" + this.value;
             });
         </script>

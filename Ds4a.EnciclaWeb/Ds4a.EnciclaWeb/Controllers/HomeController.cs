@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -39,10 +38,18 @@ namespace Ds4a.EnciclaWeb.Controllers
         /// Map View. Shows a map with all stations and their status.
         /// </summary>
         /// <returns></returns>
-        public async Task<IActionResult> Map()
+        public async Task<IActionResult> Map(bool noBikes = false)
         {
             var client = new HttpClient();
-            string response = await client.GetStringAsync($"{_baseUrl}/api/stations?includeAvailability=true");
+            if (noBikes)
+            {
+                var predictedResponse = await client.GetStringAsync($"{_baseUrl}/api/stations/stationsWithoutBikesNextHour");
+                var predictedStations = JsonConvert.DeserializeObject<List<Station>>(predictedResponse);
+
+                return View(predictedStations);
+            }
+
+            var response = await client.GetStringAsync($"{_baseUrl}/api/stations?includeAvailability=true");
             var stations = JsonConvert.DeserializeObject<List<Station>>(response);
 
             return View(stations);
@@ -76,7 +83,7 @@ namespace Ds4a.EnciclaWeb.Controllers
                 }
 
                 //If no date is provided, send today by default.
-                date ??= DateTime.Today;
+                date ??= DateTime.Today.ToUniversalTime().AddHours(-5);
 
                 #region Station Info
 
@@ -96,7 +103,7 @@ namespace Ds4a.EnciclaWeb.Controllers
                 //is required by Plotly for the chart.
                 response = await client.GetStringAsync($"{_baseUrl}/api/stations/{id}/dailyCapacity?date={date}");
                 stationDetails.DailyCapacityJson = response;
-                
+
                 response = await client.GetStringAsync($"{_baseUrl}/api/stations/{id}/dailyPredictions?date={date}");
                 stationDetails.DailyPredictionsJson = response;
 

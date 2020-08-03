@@ -1,13 +1,27 @@
 ﻿@model List<Ds4a.EnciclaWeb.Models.Domain.Station>
 
 @{
-    ViewData["Title"] = "Station Map";
+    ViewData["Title"] = "Stations Map";
+    var noBikes = Convert.ToBoolean(Context.Request.Query["noBikes"]);
 }
 
-<h1>
-    <i class="fas fa-map-marked-alt text-success"></i>
-    @ViewData["Title"]
-</h1>
+<div class="row">
+    <div class="col-md-5">
+        <h1>
+            <i class="fas fa-map-marked-alt text-success"></i>
+            @ViewData["Title"]
+        </h1>
+    </div>
+    <div class="col-md-7">
+        <div class="form-check float-right mt-3">
+            <input id="predictedStations" class="form-check-input" type="checkbox" asp-for="@noBikes">
+            <label class="form-check-label" for="predictedStations">
+                Show predicted Stations without bikes in the next hour
+            </label>
+        </div>
+    </div>
+</div>
+
 <div class="row">
     <div class="col-md-12">
         <div style="width: 100%; height: calc(100vh - 210px);" id="mapContainer"></div>
@@ -106,36 +120,42 @@
             iconClass = "fas fa-thumbs-up text-success";
         }
     <script>
-            var marker = new H.map.Marker({ lat: @station.Latitude, lng: @station.Longitude }, { icon: new H.map.Icon('@iconUrl') });
-            marker.addEventListener("tap", function (event) {
-                var bubble =  new H.ui.InfoBubble(event.target.getGeometry(), {
-                    //Read marker data (HTML)
-                    content: event.target.getData()
-                });
-                //Show info bubble
-                ui.addBubble(bubble);
-            }, false);
-            var html = '<div style="width: 430px">';
-            html += '<h4><a href="/home/stations/@station.StationId"><i class="fas fa-biking mr-1"></i>@station.Name</a></h4>';
-            html += '<div class="row">';
-            html += '<div class="col-md-6"><strong class="text-info">Zone:</strong></div>';
-            html += '<div class="col"><i class="fas fa-search-location mr-1"></i>@station.Zone?.Name</div>';
-            html += '</div>';
-            html += '<div class="row">';
-            html += '<div class="col-md-6"><strong class="text-info">Capacity:</strong></div>';
-            html += '<div class="col"><i class="fas fa-bicycle mr-1"></i>@station.Capacity</div>';
-            html += '</div>';
-            html += '<div class="row">';
-            html += '<div class="col-md-6"><strong class="text-info">Availability:</strong></div>';
-            html += '<div class="col"><i class="@iconClass mr-1"></i>@Math.Round(station.CurrentAvailability * 100)% (@station.CurrentBikes bicycles)</div>';
-            html += '</div>';
-            html += '<div class="row">';
-            html += '<div class="col-md-6"><strong class="text-info">Availability (Next 10 Mins.):</strong></div>';
-            html += '<div class="col"><i class="@iconClass mr-1"></i>@Math.Round(station.PredictedAvailability * 100)% (@station.PredictedBikes bicycles)</div>';
-            html += '</div>';
-            html += '</div>';
-            marker.setData(html);
-            map.addObject(marker);
+                var marker = new H.map.Marker({ lat: @station.Latitude, lng: @station.Longitude }, { icon: new H.map.Icon('@iconUrl') });
+                marker.addEventListener("tap", function (event) {
+                    var bubble =  new H.ui.InfoBubble(event.target.getGeometry(), {
+                        //Read marker data (HTML)
+                        content: event.target.getData()
+                    });
+                    //Show info bubble
+                    ui.addBubble(bubble);
+                }, false);
+                var html = '<div style="width: 430px">';
+                html += '<h4><a href="/home/stations/@station.StationId"><i class="fas fa-biking mr-1"></i>@station.Name</a></h4>';
+                html += '<div class="row">';
+                html += '<div class="col-md-6"><strong class="text-info">Zone:</strong></div>';
+                html += '<div class="col"><i class="fas fa-search-location mr-1"></i>@station.Zone?.Name</div>';
+                html += '</div>';
+                html += '<div class="row">';
+                html += '<div class="col-md-6"><strong class="text-info">Capacity:</strong></div>';
+                html += '<div class="col"><i class="fas fa-bicycle mr-1"></i>@station.Capacity</div>';
+                html += '</div>';
+                html += '<div class="row">';
+                html += '<div class="col-md-6"><strong class="text-info">Availability:</strong></div>';
+                html += '<div class="col"><i class="@iconClass mr-1"></i>@Math.Round(station.CurrentAvailability * 100)% (@station.CurrentBikes bicycles)</div>';
+                html += '</div>';
+                html += '<div class="row">';
+                html += '<div class="col-md-6"><strong class="text-info">Availability (Next 10 Mins.):</strong></div>';
+                html += '<div class="col"><i class="@iconClass mr-1"></i>@Math.Round(station.PredictedAvailability * 100)% (@station.PredictedBikes bicycles)</div>';
+                html += '</div>';
+                html += '</div>';
+                marker.setData(html);
+                map.addObject(marker);
     </script>
     }
+    <script>
+        $("#predictedStations").change(function () {
+            console.log(this.value);
+            window.location.href = "/Home/Map?noBikes=@(!noBikes)";
+        });
+    </script>
 }

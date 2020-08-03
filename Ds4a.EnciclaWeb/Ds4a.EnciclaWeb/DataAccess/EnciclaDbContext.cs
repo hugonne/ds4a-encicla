@@ -1,5 +1,4 @@
-﻿using Ds4a.EnciclaWeb.Models;
-using Ds4a.EnciclaWeb.Models.Domain;
+﻿using Ds4a.EnciclaWeb.Models.Domain;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ds4a.EnciclaWeb.DataAccess
@@ -16,6 +15,7 @@ namespace Ds4a.EnciclaWeb.DataAccess
 
         public virtual DbSet<Inventory> Inventories { get; set; }
         public virtual DbSet<Prediction> Predictions { get; set; }
+        public virtual DbSet<PredictionOneHour> PredictionsOneHour { get; set; }
         public virtual DbSet<Station> Stations { get; set; }
         public virtual DbSet<Weather> Weather { get; set; }
         public virtual DbSet<Zone> Zones { get; set; }
@@ -76,6 +76,36 @@ namespace Ds4a.EnciclaWeb.DataAccess
                 entity.Property(e => e.StationPlacesState)
                     .HasColumnName("station_places_state")
                     .HasColumnType("character varying");
+            });
+
+            modelBuilder.Entity<PredictionOneHour>(entity =>
+            {
+                entity.ToTable("prediction_one_hour", "ds4a_encicla_schema");
+
+                entity.HasIndex(e => e.InventoryId)
+                    .HasName("prediction_one_hour_inventory_index");
+
+                entity.HasIndex(e => e.PredictDate)
+                    .HasName("prediction_one_hour_date_index");
+
+                entity.Property(e => e.PredictionId)
+                    .HasColumnName("prediction_id")
+                    .HasMaxLength(200);
+
+                entity.Property(e => e.InventoryId)
+                    .IsRequired()
+                    .HasColumnName("inventory_id")
+                    .HasMaxLength(200);
+
+                entity.Property(e => e.PredictBikes).HasColumnName("predict_bikes");
+
+                entity.Property(e => e.PredictDate).HasColumnName("predict_date");
+
+                entity.HasOne(d => d.Inventory)
+                    .WithMany(p => p.PredictionOneHour)
+                    .HasForeignKey(d => d.InventoryId)
+                    .OnDelete(DeleteBehavior.ClientSetNull)
+                    .HasConstraintName("FK_Prediction_one_hour_Inventory_inventory_id");
             });
 
             modelBuilder.Entity<Prediction>(entity =>

@@ -22,5 +22,6 @@ namespace Ds4a.EnciclaWeb.Models.Domain
 
         public Station Station { get; set; }
         public ICollection<Prediction> Prediction { get; set; }
+        public ICollection<PredictionOneHour> PredictionOneHour { get; set; }
     }
 }
